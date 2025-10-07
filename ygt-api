@@ -1,0 +1,244 @@
+#!/bin/bash
+# ygt-api.sh - Wrapper for YouGotThis! (YGT) API calls
+
+show_help() {
+    cat << 'EOF'
+YGT API Wrapper - Interface to YouGotThis! task management system
+
+USAGE:
+    ygt-api.sh <method> <endpoint> [data] [token]
+    ygt-api.sh --help
+
+ARGUMENTS:
+    method      HTTP method: GET, POST, or PUT
+    endpoint    API endpoint path (e.g., /context, /tasks, /projects)
+    data        JSON data for POST/PUT requests (optional for GET)
+    token       YGT API token (optional if YGT_TOKEN env var is set)
+
+AUTHENTICATION:
+    The YGT API requires a bearer token for authentication. Provide it either:
+    - As the 4th argument: ygt-api.sh GET /context "" "YOUR_TOKEN"
+    - As environment variable: export YGT_TOKEN="YOUR_TOKEN"
+
+    Note: Tokens expire with each YGT session and must be updated regularly.
+
+ENDPOINTS:
+    /context                Get user info and places (workspaces)
+    /projects               List/create/update projects
+    /projects/<id>          Get/update specific project
+    /tasks                  List/create/update tasks
+    /tasks/<id>             Get/update specific task
+    /knowledge              List/create/update bookmarks
+    /knowledge/<id>         Get/update specific bookmark
+
+QUERY PARAMETERS:
+    GET /projects           Optional: place_id, include_completed
+    GET /tasks              Optional: pile (default: "today"), project_id, place_id, limit (default: 50)
+    GET /knowledge          Optional: place_id
+
+    Tasks support filtering by "pile":
+    - pile=today       Active work items (default)
+    - pile=future      Backlog items
+    - pile=completed   Completed tasks
+    - pile=scheduled   Date-specific tasks
+
+REQUIRED FIELDS:
+    POST /projects          Required: title, place_id
+                           Optional: description
+
+    POST /tasks             Required: title, project_id
+                           Optional: description, pile, scheduled_date
+                           Note: scheduled_date required if pile is "scheduled"
+
+    POST /knowledge         Required: title, url, place_id
+                           Optional: description
+
+    PUT /tasks/{id}         All optional: title, description, pile, scheduled_date
+
+EXAMPLES:
+    # GET - Read operations
+    ygt-api.sh GET /context
+    ygt-api.sh GET /projects
+    ygt-api.sh GET "/tasks?pile=future"
+    ygt-api.sh GET "/tasks?pile=today&limit=5"
+    ygt-api.sh GET /knowledge
+
+    # POST - Create operations
+    ygt-api.sh POST /projects '{"place_id":"166","title":"New Project","description":"My project"}'
+    ygt-api.sh POST /tasks '{"project_id":"471","title":"New Task","pile":"today","description":"Do this"}'
+    ygt-api.sh POST /knowledge '{"place_id":"166","title":"Useful Link","url":"https://example.com"}'
+
+    # PUT - Update operations
+    ygt-api.sh PUT /tasks/123 '{"pile":"completed"}'
+    ygt-api.sh PUT /projects/471 '{"title":"Updated Title"}'
+    ygt-api.sh PUT /knowledge/456 '{"title":"Updated Bookmark Title"}'
+
+    # Using with explicit token (when YGT_TOKEN not set)
+    ygt-api.sh GET /projects "" "YOUR_TOKEN_HERE"
+
+RESPONSE FORMAT:
+    All responses are returned as JSON from the YGT API.
+
+    Context response includes:
+    - user: {id, name, email}
+    - places: [{id, name, is_editable, is_sharable}]
+
+    Projects include:
+    - id, title, description
+    - place: {id, name}
+    - task_count, completed_tasks, progress_percent
+    - dates: {created, completed}
+
+    Tasks include:
+    - id, title, description, pile
+    - project: {id, name, place_id}
+    - dates: {created, show, end}
+
+TASK PILE SYSTEM:
+    YGT organizes tasks into "piles" for workflow management:
+    - today:     Current active work
+    - future:    Backlog for later
+    - completed: Finished tasks
+    - scheduled: Tasks with specific dates
+
+    Move tasks between piles by updating the "pile" field with PUT.
+
+WORKFLOW TIPS:
+    1. Get context first to see available places:
+       ygt-api.sh GET /context
+
+    2. List projects to find project IDs:
+       ygt-api.sh GET /projects
+
+    3. Create tasks with the project_id:
+       ygt-api.sh POST /tasks '{"project_id":"471","title":"My Task","pile":"today"}'
+
+    4. Move tasks between piles as work progresses:
+       ygt-api.sh PUT /tasks/123 '{"pile":"completed"}'
+
+ERROR HANDLING:
+    The script validates required fields before making API calls:
+    - Missing token: Error and exit
+    - POST /projects without place_id: Error and exit
+    - POST /tasks without project_id: Error and exit
+    - POST /knowledge without place_id: Error and exit
+    - POST/PUT without data: Error and exit
+
+For more information, visit: https://ygt.oddbeaker.com
+EOF
+}
+
+# Show help if requested
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    show_help
+    exit 0
+fi
+
+METHOD=$1
+ENDPOINT=$2
+DATA=$3
+TOKEN=${4:-$YGT_TOKEN}
+BASE_URL="https://ygt.oddbeaker.com/api/llm.php"
+
+if [ -z "$TOKEN" ]; then
+    echo "Error: No token provided. Set YGT_TOKEN environment variable or pass as second argument." >&2
+    exit 1
+fi
+
+# Validate required parameters for POST requests
+if [ "$METHOD" = "POST" ] && [ -n "$DATA" ]; then
+    # Extract the base endpoint (before any /)
+    BASE_ENDPOINT=$(echo "$ENDPOINT" | sed 's/\/.*//' | sed 's/?.*//')
+
+    case "$BASE_ENDPOINT" in
+        /projects)
+            # Check if id is in endpoint
+            if [[ ! "$ENDPOINT" =~ /projects/[0-9]+ ]]; then
+                # No id in endpoint, require title and place_id in data
+                if ! echo "$DATA" | grep -q '"title"'; then
+                    echo "Error: POST /projects requires 'title' field" >&2
+                    exit 1
+                fi
+                if ! echo "$DATA" | grep -q '"place_id"'; then
+                    echo "Error: POST /projects requires 'place_id' field" >&2
+                    exit 1
+                fi
+            fi
+            ;;
+        /tasks)
+            # Check if id is in endpoint
+            if [[ ! "$ENDPOINT" =~ /tasks/[0-9]+ ]]; then
+                # No id in endpoint, require title and project_id in data
+                if ! echo "$DATA" | grep -q '"title"'; then
+                    echo "Error: POST /tasks requires 'title' field" >&2
+                    exit 1
+                fi
+                if ! echo "$DATA" | grep -q '"project_id"'; then
+                    echo "Error: POST /tasks requires 'project_id' field" >&2
+                    exit 1
+                fi
+                # If pile is scheduled, require scheduled_date
+                if echo "$DATA" | grep -q '"pile"\s*:\s*"scheduled"'; then
+                    if ! echo "$DATA" | grep -q '"scheduled_date"'; then
+                        echo "Error: POST /tasks with pile='scheduled' requires 'scheduled_date' field" >&2
+                        exit 1
+                    fi
+                fi
+            fi
+            ;;
+        /knowledge)
+            # Check if id is in endpoint
+            if [[ ! "$ENDPOINT" =~ /knowledge/[0-9]+ ]]; then
+                # No id in endpoint, require title, url, and place_id in data
+                if ! echo "$DATA" | grep -q '"title"'; then
+                    echo "Error: POST /knowledge requires 'title' field" >&2
+                    exit 1
+                fi
+                if ! echo "$DATA" | grep -q '"url"'; then
+                    echo "Error: POST /knowledge requires 'url' field" >&2
+                    exit 1
+                fi
+                if ! echo "$DATA" | grep -q '"place_id"'; then
+                    echo "Error: POST /knowledge requires 'place_id' field" >&2
+                    exit 1
+                fi
+            fi
+            ;;
+    esac
+fi
+
+# Build URL with token
+if [[ "$ENDPOINT" == *"?"* ]]; then
+    URL="${BASE_URL}${ENDPOINT}&token=${TOKEN}"
+else
+    URL="${BASE_URL}${ENDPOINT}?token=${TOKEN}"
+fi
+
+# Execute request based on method
+case "$METHOD" in
+    GET)
+        curl -s -X GET "$URL"
+        ;;
+    POST)
+        if [ -z "$DATA" ]; then
+            echo "Error: POST requires data parameter" >&2
+            exit 1
+        fi
+        curl -s -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -d "$DATA"
+        ;;
+    PUT)
+        if [ -z "$DATA" ]; then
+            echo "Error: PUT requires data parameter" >&2
+            exit 1
+        fi
+        curl -s -X PUT "$URL" \
+            -H "Content-Type: application/json" \
+            -d "$DATA"
+        ;;
+    *)
+        echo "Error: Unsupported method '$METHOD'. Use GET, POST, or PUT." >&2
+        exit 1
+        ;;
+esac
