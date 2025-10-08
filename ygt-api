@@ -147,8 +147,8 @@ fi
 
 # Validate required parameters for POST requests
 if [ "$METHOD" = "POST" ] && [ -n "$DATA" ]; then
-    # Extract the base endpoint (before any /)
-    BASE_ENDPOINT=$(echo "$ENDPOINT" | sed 's/\/.*//' | sed 's/?.*//')
+    # Extract the base endpoint (before any / or ?)
+    BASE_ENDPOINT=$(echo "$ENDPOINT" | sed 's/\/[0-9].*//' | sed 's/?.*//')
 
     case "$BASE_ENDPOINT" in
         /projects)
