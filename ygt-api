@@ -141,7 +141,7 @@ TOKEN=${4:-$YGT_TOKEN}
 BASE_URL="https://ygt.oddbeaker.com/api/llm.php"
 
 if [ -z "$TOKEN" ]; then
-    echo "Error: No token provided. Set YGT_TOKEN environment variable or pass as second argument." >&2
+    echo "Error: No token provided. Set YGT_TOKEN environment variable or pass as 4th argument." >&2
     exit 1
 fi
 
