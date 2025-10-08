@@ -1,13 +1,13 @@
 #!/bin/bash
-# ygt-api.sh - Wrapper for YouGotThis! (YGT) API calls
+# ygt-api - Wrapper for YouGotThis! (YGT) API calls
 
 show_help() {
     cat << 'EOF'
 YGT API Wrapper - Interface to YouGotThis! task management system
 
 USAGE:
-    ygt-api.sh <method> <endpoint> [data] [token]
-    ygt-api.sh --help
+    ygt-api <method> <endpoint> [data] [token]
+    ygt-api --help
 
 ARGUMENTS:
     method      HTTP method: GET, POST, or PUT
@@ -17,7 +17,7 @@ ARGUMENTS:
 
 AUTHENTICATION:
     The YGT API requires a bearer token for authentication. Provide it either:
-    - As the 4th argument: ygt-api.sh GET /context "" "YOUR_TOKEN"
+    - As the 4th argument: ygt-api GET /context "" "YOUR_TOKEN"
     - As environment variable: export YGT_TOKEN="YOUR_TOKEN"
 
     Note: Tokens expire with each YGT session and must be updated regularly.
@@ -57,24 +57,24 @@ REQUIRED FIELDS:
 
 EXAMPLES:
     # GET - Read operations
-    ygt-api.sh GET /context
-    ygt-api.sh GET /projects
-    ygt-api.sh GET "/tasks?pile=future"
-    ygt-api.sh GET "/tasks?pile=today&limit=5"
-    ygt-api.sh GET /knowledge
+    ygt-api GET /context
+    ygt-api GET /projects
+    ygt-api GET "/tasks?pile=future"
+    ygt-api GET "/tasks?pile=today&limit=5"
+    ygt-api GET /knowledge
 
     # POST - Create operations
-    ygt-api.sh POST /projects '{"place_id":"166","title":"New Project","description":"My project"}'
-    ygt-api.sh POST /tasks '{"project_id":"471","title":"New Task","pile":"today","description":"Do this"}'
-    ygt-api.sh POST /knowledge '{"place_id":"166","title":"Useful Link","url":"https://example.com"}'
+    ygt-api POST /projects '{"place_id":"166","title":"New Project","description":"My project"}'
+    ygt-api POST /tasks '{"project_id":"471","title":"New Task","pile":"today","description":"Do this"}'
+    ygt-api POST /knowledge '{"place_id":"166","title":"Useful Link","url":"https://example.com"}'
 
     # PUT - Update operations
-    ygt-api.sh PUT /tasks/123 '{"pile":"completed"}'
-    ygt-api.sh PUT /projects/471 '{"title":"Updated Title"}'
-    ygt-api.sh PUT /knowledge/456 '{"title":"Updated Bookmark Title"}'
+    ygt-api PUT /tasks/123 '{"pile":"completed"}'
+    ygt-api PUT /projects/471 '{"title":"Updated Title"}'
+    ygt-api PUT /knowledge/456 '{"title":"Updated Bookmark Title"}'
 
     # Using with explicit token (when YGT_TOKEN not set)
-    ygt-api.sh GET /projects "" "YOUR_TOKEN_HERE"
+    ygt-api GET /projects "" "YOUR_TOKEN_HERE"
 
 RESPONSE FORMAT:
     All responses are returned as JSON from the YGT API.
@@ -105,16 +105,16 @@ TASK PILE SYSTEM:
 
 WORKFLOW TIPS:
     1. Get context first to see available places:
-       ygt-api.sh GET /context
+       ygt-api GET /context
 
     2. List projects to find project IDs:
-       ygt-api.sh GET /projects
+       ygt-api GET /projects
 
     3. Create tasks with the project_id:
-       ygt-api.sh POST /tasks '{"project_id":"471","title":"My Task","pile":"today"}'
+       ygt-api POST /tasks '{"project_id":"471","title":"My Task","pile":"today"}'
 
     4. Move tasks between piles as work progresses:
-       ygt-api.sh PUT /tasks/123 '{"pile":"completed"}'
+       ygt-api PUT /tasks/123 '{"pile":"completed"}'
 
 ERROR HANDLING:
     The script validates required fields before making API calls:
