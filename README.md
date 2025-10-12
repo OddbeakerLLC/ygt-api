@@ -26,14 +26,38 @@ cd ygt-api
 ./install
 ```
 
-The install script creates a symlink in `/usr/local/bin`, making `ygt-api` available system-wide.
+The install script copies `ygt-api` to `/usr/local/bin`, making it available system-wide.
+
+**Uninstallation:**
+```bash
+./uninstall
+```
 
 **Manual installation** (if you prefer):
 ```bash
 chmod +x ygt-api
-# Either add to PATH or create symlink manually:
-sudo ln -s "$(pwd)/ygt-api" /usr/local/bin/ygt-api
+# Copy to a directory in your PATH:
+sudo cp ygt-api /usr/local/bin/ygt-api
 ```
+
+## Project Initialization
+
+After installation, initialize YGT for each code project:
+
+```bash
+cd your-project-directory
+ygt-api --init
+```
+
+This copies `YGT.md` to your project directory, which enables LLM assistants (like Claude) to automatically load your YGT tasks at the start of each conversation. The command will check for a `.git` directory to confirm it's a code project.
+
+**What happens after `--init`:**
+1. YGT.md is created in your project directory
+2. When you start an LLM conversation, it will prompt you to:
+   - Select a YGT workspace (place)
+   - Select a project within that workspace
+   - Creates `.claude-ygt.json` to remember your selection
+3. Your active tasks are automatically loaded at conversation start
 
 ## Authentication
 
