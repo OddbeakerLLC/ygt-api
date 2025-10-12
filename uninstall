@@ -1,0 +1,47 @@
+#!/bin/bash
+# Uninstall script for ygt-api
+
+set -e
+
+SCRIPT_NAME="ygt-api"
+INSTALL_DIR="/usr/local/bin"
+INSTALL_PATH="$INSTALL_DIR/$SCRIPT_NAME"
+
+echo "YGT API Wrapper Uninstallation"
+echo "=============================="
+echo
+
+# Check if installed
+if [ ! -f "$INSTALL_PATH" ] && [ ! -L "$INSTALL_PATH" ]; then
+    echo "Error: $SCRIPT_NAME is not installed at $INSTALL_PATH" >&2
+    exit 1
+fi
+
+# Check if we need sudo
+if [ ! -w "$INSTALL_DIR" ]; then
+    SUDO="sudo"
+    echo "Note: Uninstallation requires sudo privileges"
+    echo
+else
+    SUDO=""
+fi
+
+# Confirm uninstallation
+echo "This will remove: $INSTALL_PATH"
+echo
+read -p "Continue with uninstallation? [y/N] " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Uninstallation cancelled"
+    exit 1
+fi
+
+# Remove the script
+echo "Removing $SCRIPT_NAME..."
+$SUDO rm "$INSTALL_PATH"
+
+echo
+echo "✓ Uninstallation complete!"
+echo
+echo "  Removed: $INSTALL_PATH"
+echo

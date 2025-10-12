@@ -7,6 +7,7 @@ YGT API Wrapper - Interface to YouGotThis! task management system
 
 USAGE:
     ygt-api <method> <endpoint> [data] [token]
+    ygt-api --init
     ygt-api --help
 
 ARGUMENTS:
@@ -103,6 +104,13 @@ TASK PILE SYSTEM:
 
     Move tasks between piles by updating the "pile" field with PUT.
 
+INITIALIZATION:
+    For new code projects, run --init to set up YGT integration:
+       ygt-api --init
+
+    This copies YGT.md to your project directory, which enables LLM assistants
+    to automatically load your YGT tasks at the start of each conversation.
+
 WORKFLOW TIPS:
     1. Get context first to see available places:
        ygt-api GET /context
@@ -131,6 +139,52 @@ EOF
 # Show help if requested
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     show_help
+    exit 0
+fi
+
+# Handle --init option
+if [ "$1" = "--init" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    YGT_MD_SOURCE="$SCRIPT_DIR/YGT.md"
+    YGT_MD_DEST="./YGT.md"
+
+    # Check if this is a code project (has .git directory)
+    if [ ! -d ".git" ]; then
+        echo "Warning: This doesn't appear to be a git repository (no .git folder found)."
+        echo
+        read -p "Initialize YGT in this directory anyway? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Initialization cancelled"
+            exit 1
+        fi
+    fi
+
+    # Check if YGT.md already exists
+    if [ -f "$YGT_MD_DEST" ]; then
+        echo "Error: YGT.md already exists in this directory" >&2
+        exit 1
+    fi
+
+    # Check if source YGT.md exists
+    if [ ! -f "$YGT_MD_SOURCE" ]; then
+        echo "Error: YGT.md template not found at $YGT_MD_SOURCE" >&2
+        echo "This may happen if ygt-api was installed via copy instead of being run from the repo." >&2
+        exit 1
+    fi
+
+    # Copy YGT.md to current directory
+    cp "$YGT_MD_SOURCE" "$YGT_MD_DEST"
+
+    echo "✓ YGT initialized!"
+    echo
+    echo "  Created: YGT.md"
+    echo
+    echo "Next steps:"
+    echo "  1. Add YGT.md to your .gitignore if needed"
+    echo "  2. Get your Access Token from https://ygt.oddbeaker.com"
+    echo "  3. Start your LLM assistant and it will guide you through project setup"
+    echo
     exit 0
 fi
 
